@@ -1,0 +1,6 @@
+# this .pkgx.yaml file is only for alembic
+
+dependencies:
+  postgresql.org: 16
+  alembic.sqlalchemy.org: 1
+  psycopg.org/psycopg2: 2

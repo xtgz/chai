@@ -1,0 +1,8 @@
+# directories
+data/
+db/
+.venv/
+
+# other files
+.gitignore
+docker-compose.yml

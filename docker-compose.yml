@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=s3cr3t
+    ports:
+      - "5435:5432"
+    volumes:
+      - ./db/data:/var/lib/postgresql/data
+      - ./db/init-scripts/init-script.sql:/docker-entrypoint-initdb.d/create-database.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chai"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  
+  alembic:
+    build: alembic
+    environment:
+      - CHAI_DATABASE_URL=postgresql://postgres:s3cr3t@db:5432/chai
+      - POSTGRES_PASSWORD=s3cr3t
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    working_dir: /app/alembic
+    entrypoint: ["./run_migrations.sh"]
+  
+  pipeline:
+    build: src
+    # TODO: PKG_MANAGER should be configurable
+    # TODO: do I need PYTHONPATH?
+    environment:
+      - CHAI_DATABASE_URL=postgresql://postgres:s3cr3t@db:5432/chai
+      - PKG_MANAGER=crates
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+    working_dir: /app
+    depends_on:
+      db:
+        condition: service_healthy
+      alembic:
+        condition: service_completed_successfully
+    entrypoint: ["./src/run_pipeline.sh"]
