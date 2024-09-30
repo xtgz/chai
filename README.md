@@ -1,4 +1,4 @@
-# data pipeline
+# CHAI
 
 inspiration [here](https://github.com/vbelz/Data-pipeline-twitter)
 
@@ -9,6 +9,8 @@ are 3 services to it:
 1. db: postgres to store package specific data
 1. alembic: for running migrations
 1. pipeline: which fetches and writes data
+
+## Setup
 
 first run `mkdir -p data/{crates,pkgx,homebrew,npm,pypi,rubys}`, to setup the data
 directory where the fetchers will store the data.
@@ -68,20 +70,49 @@ if at all you need to do a hard reset, here's the steps
 - vapor's migrations are written in swift
 -->
 
+## Usage
+
+our goal is to build a data schema that looks like this:
+
+<!-- ![db/CHAI_ERD.png](db/CHAI_ERD.png) -->
+
+our specific application extracts the dependency graph understand what are critical
+pieces of the open-source graph. there are many other potential use cases for this data:
+
+- impacts of a package update (is it compatible with other packages)
+- finding name squats
+- finding the superpower maintainers
+- number of versions / releases per package, and a release cadence
+- ...
+
+### top packages by number of versions
+
+```sql
+SELECT p."name", count(v."version") AS total_versions
+FROM packages p
+JOIN versions v ON p.id = v.package_id
+GROUP BY p."name"
+ORDER BY total_versions DESC
+```
+
+### ways to detect name squats
+
+```sql
+SELECT left(p."name", 5), count(1) as number_of_packages
+FROM packages p
+GROUP BY left(p."name", 5)
+ORDER BY number_of_packages DESC
+```
+
 ## FAQs / common issues
 
 1. the database url is `postgresql://postgres:s3cr3t@localhost:5435/chai`, and is used
    as `CHAI_DATABASE_URL` in the environment.
-1. the command `./run_migrations.sh` is used to run migrations, and you might need to
-   `chmod +x alembic/run_migrations.sh` so that it can be executed
-1. the command `./run_pipeline.sh` is used to run the pipeline, and you might need to
-   `chmod +x src/run_pipeline.sh` so that it can be executed
-1. migrations sometimes don't apply before the service starts, so you might need to
-   manually apply them:
-
+1. there are two bash scripts use by the alembic and pipeline services, and you'd need
+   to run the following to ensure they can be executed:
    ```sh
-   cd alembic
-   alembic upgrade head
+   chmod +x alembic/run_migrations.sh
+   chmod +x src/run_pipeline.sh
    ```
 
 ## tasks
