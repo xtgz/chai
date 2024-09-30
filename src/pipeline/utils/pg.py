@@ -122,11 +122,14 @@ class DB:
         with self.session() as session:
             exists = self.get_package_manager_id(package_manager) is not None
             if not exists:
-                result = session.add(PackageManager(name=package_manager))
+                session.add(PackageManager(name=package_manager))
                 session.commit()
-                id = result.id
-                self.logger.debug(f"{package_manager}: {id}")
-                return id
+                return (
+                    session.query(PackageManager)
+                    .filter_by(name=package_manager)
+                    .first()
+                    .id
+                )
 
     def select_packages_by_package_manager(
         self, package_manager: PackageManager

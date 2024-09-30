@@ -52,8 +52,8 @@ def get_crates_packages(db: DB) -> None:
     transformer.update_crates_versions_db_ids(loaded_versions)
 
     # dependencies
-    logger.log("loading crates dependencies into db...this will take the longest")
-    db.insert_dependencies(transformer.dependencies())
+    logger.log("skipping dependencies, because this causes OOM issues for now")
+    # db.insert_dependencies(transformer.dependencies())
 
     # insert load history
     db.insert_load_history(package_manager_id)

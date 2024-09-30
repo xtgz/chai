@@ -1,5 +1,5 @@
 # __init__.py
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, MetaData, String, func
+from sqlalchemy import Column, DateTime, ForeignKey, MetaData, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 

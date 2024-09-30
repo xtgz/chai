@@ -35,10 +35,6 @@ class Transformer:
         pass
 
 
-# load this in once: build this dictionary
-# {"1.0.0": "semverator", "1.0.1": "semverator"}
-# {"semverator": {"versions": ["1.0.0", "1.0.1"], "uuid": uuid}} => another option
-# {"semverator": uuid}
 @dataclass
 class Crate:
     crate_id: int
@@ -63,6 +59,8 @@ class CratesTransformer(Transformer):
             "dependencies": "dependencies.csv",
         }
         # TODO: we gotta redo this too, it works, but it's unnecessarily bulky
+        # the name_map is probably redundant, if we know the order of insertions
+        # postgres doesn't really do any reordering, so we can just use the index
         self.crates: Dict[int, Crate] = {}
         self.name_map: Dict[str, int] = {}
         self.crate_versions: Dict[int, CrateVersion] = {}

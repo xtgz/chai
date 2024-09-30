@@ -39,6 +39,8 @@ def main():
         logger.error(f"traceback: {''.join(traceback.format_tb(exc_traceback))}")
         sys.exit(1)
 
+    sys.exit(0)
+
 
 if __name__ == "__main__":
     main()
