@@ -1,4 +1,6 @@
 import time
+import sys
+import traceback
 
 # use inspect to print the line of code as well?
 # caller = inspect.currentframe().f_back
@@ -43,3 +45,9 @@ class Logger:
 
     def time_diff(self):
         return time.time() - self.start
+
+    def exception(self):
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        self.print(f"{exc_type.__name__}: {exc_value}")
+        self.print("***** TRACEBACK *****")
+        print(f"{''.join(traceback.format_tb(exc_traceback))}")
