@@ -30,11 +30,9 @@ services:
   
   pipeline:
     build: src
-    # TODO: PKG_MANAGER should be configurable
-    # TODO: do I need PYTHONPATH?
     environment:
       - CHAI_DATABASE_URL=postgresql://postgres:s3cr3t@db:5432/chai
-      - PKG_MANAGER=crates
+      - PKG_MANAGER=${PKG_MANAGER:-crates}
       - PYTHONPATH=/app
     volumes:
       - .:/app

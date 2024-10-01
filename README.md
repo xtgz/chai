@@ -45,6 +45,11 @@ pipeline-1  | 0.03: [crates_fetcher]: [DEBUG]: logging is working
 pipeline-1  | 0.03: [crates_fetcher]: [DEBUG]: adding package manager crates
 ```
 
+> [!IMPORTANT]
+>
+> the `PKG_MANAGER` argument denotes which package manager the pipeline will be run for
+> it is configurable, and defaults to `crates`
+
 > [!TIP]
 >
 > to force it, `docker-compose up --force-recreate --build`
@@ -176,7 +181,8 @@ uv pip install -r requirements.txt
 
 Requires: setup
 Inputs: FORCE
-Env: FORCE=not-force
+Env: FORCE=${FORCE:-not-force}
+Env: PKG_MANAGER=${PKG_MANAGER:-crates}
 
 ```sh
 if [ "$FORCE" = "force" ]; then
