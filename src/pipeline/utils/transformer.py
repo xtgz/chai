@@ -40,6 +40,7 @@ class Crate:
     crate_id: int
     name: str
     versions: List[int] = field(default_factory=list)
+    urls: List[str] = field(default_factory=list)
     db_id: UUID | None = None
 
 
@@ -50,14 +51,31 @@ class CrateVersion:
     db_id: UUID | None = None
 
 
+@dataclass
+class User:
+    id: int
+    username: str
+    db_id: UUID | None = None
+
+
+@dataclass
+class URL:
+    type: str
+    db_id: UUID | None = None
+
+
 class CratesTransformer(Transformer):
-    def __init__(self):
+    def __init__(self, homepage_url_type_id: UUID, repository_url_type_id: UUID):
         super().__init__("crates")
         self.files = {
             "projects": "crates.csv",
             "versions": "versions.csv",
             "dependencies": "dependencies.csv",
+            "users": "users.csv",
+            "urls": "crates.csv",
         }
+        self.homepage_url_type_id = homepage_url_type_id
+        self.repository_url_type_id = repository_url_type_id
         # TODO: we gotta redo this too, it works, but it's unnecessarily bulky
         # the name_map is probably redundant, if we know the order of insertions
         # postgres doesn't really do any reordering, so we can just use the index
@@ -65,6 +83,8 @@ class CratesTransformer(Transformer):
         self.name_map: Dict[str, int] = {}
         self.crate_versions: Dict[int, CrateVersion] = {}
         self.num_map: Dict[str, int] = {}
+        self.user_map: Dict[int, User] = {}
+        self.url_map: Dict[str, URL] = {}
 
     # TODO: can I move this to the transformer class?
     def finder(self, file_name: str) -> str:
@@ -92,6 +112,22 @@ class CratesTransformer(Transformer):
                 name = row["name"]
                 self.crates[crate_id] = Crate(crate_id=crate_id, name=name)
                 self.name_map[name] = crate_id
+
+                # get the homepage and repository urls
+                # but don't yield them yet
+                homepage_url = row["homepage"]
+                repository_url = row["repository"]
+
+                if homepage_url.strip():
+                    self.crates[crate_id].urls.append(homepage_url)
+                    self.url_map[homepage_url] = URL(
+                        type=self.homepage_url_type_id, db_id=None
+                    )
+                if repository_url.strip():
+                    self.crates[crate_id].urls.append(repository_url)
+                    self.url_map[repository_url] = URL(
+                        type=self.repository_url_type_id, db_id=None
+                    )
 
                 # yield name for loading into postgres
                 yield name
@@ -142,6 +178,42 @@ class CratesTransformer(Transformer):
                     "semver_range": semver,
                 }
 
+    # crate_owners.csv has the crate_id to user mapping
+    # we need to maintain the user_id to username mapping
+    def users(self):
+        users_path = self.finder(self.files["users"])
+
+        with open(users_path) as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                crates_user_id = row["id"]
+                username = row["gh_login"]
+                self.user_map[crates_user_id] = User(
+                    id=crates_user_id, username=username
+                )
+                yield {"username": username}
+
+    # note that this function does not open a file
+    # it actually yields a url, by going through the map which was already built
+    # TODO: we probably can avoid this double iteration (when populating it)
+    def urls(self):
+        for url in self.url_map.keys():
+            yield url
+
+    def url_types(self):
+        yield {"type": "homepage"}
+        yield {"type": "repository"}
+
+    def url_to_pkg(self):
+        for _, crate in self.crates.items():
+            for url in crate.urls:
+                yield {
+                    "package_id": crate.db_id,
+                    "url_id": self.url_map[url].db_id,
+                    # annoying, because i've got to know the id
+                    "url_type_id": self.url_map[url].type,
+                }
+
     def get_crate_db_id(self, crate_id: int) -> UUID:
         return self.crates[crate_id].db_id
 
@@ -161,3 +233,7 @@ class CratesTransformer(Transformer):
             # version is a number and a package_id
             crate_version_id = self.num_map[version.version]
             self.crate_versions[crate_version_id].db_id = version.id
+
+    def update_crates_urls_db_ids(self, urls: List[URL]):
+        for url in urls:
+            self.url_map[url.url].db_id = url.id

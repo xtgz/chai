@@ -1,5 +1,13 @@
 # __init__.py
-from sqlalchemy import Column, DateTime, ForeignKey, MetaData, String, func
+from sqlalchemy import (
+    Column,
+    DateTime,
+    ForeignKey,
+    MetaData,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -44,12 +52,15 @@ class PackageManager(Base):
 
 
 # this is a collection of all the different type of URLs
-class URLs(Base):
+class URL(Base):
     __tablename__ = "urls"
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
     url = Column(String, nullable=False, unique=True)
     record_created_at = Column(DateTime, nullable=False, default=func.now())
     record_updated_at = Column(DateTime, nullable=False, default=func.now())
+
+    def to_dict(self):
+        return {"url": self.url}
 
 
 class URLType(Base):
@@ -74,6 +85,14 @@ class Version(Base):
 
 class DependsOn(Base):
     __tablename__ = "dependencies"
+    __table_args__ = (
+        UniqueConstraint(
+            "version_id",
+            "dependency_id",
+            "dependency_type",
+            name="uq_version_dependency_type",
+        ),
+    )
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
     version_id = Column(UUID(as_uuid=True), ForeignKey("versions.id"), nullable=False)
     dependency_id = Column(
@@ -106,6 +125,11 @@ class LoadHistory(Base):
 
 class PackageURL(Base):
     __tablename__ = "package_urls"
+    __table_args__ = (
+        UniqueConstraint(
+            "package_id", "url_id", "url_type_id", name="uq_package_url_type"
+        ),
+    )
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
     package_id = Column(UUID(as_uuid=True), ForeignKey("packages.id"), nullable=False)
     url_id = Column(UUID(as_uuid=True), ForeignKey("urls.id"), nullable=False)
@@ -113,16 +137,26 @@ class PackageURL(Base):
     record_created_at = Column(DateTime, nullable=False, default=func.now())
     record_updated_at = Column(DateTime, nullable=False, default=func.now())
 
+    def to_dict(self):
+        return {
+            "package_id": self.package_id,
+            "url_id": self.url_id,
+            "url_type_id": self.url_type_id,
+        }
 
-class Users(Base):
+
+class User(Base):
     __tablename__ = "users"
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
     username = Column(String, nullable=False, unique=True)
     record_created_at = Column(DateTime, nullable=False, default=func.now())
     record_updated_at = Column(DateTime, nullable=False, default=func.now())
 
+    def to_dict(self):
+        return {"username": self.username}
 
-class UserTypes(Base):
+
+class UserType(Base):
     __tablename__ = "user_types"
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
     name = Column(String, nullable=False, unique=True)  # github, gitlab, crates, etc.
@@ -130,8 +164,11 @@ class UserTypes(Base):
     record_updated_at = Column(DateTime, nullable=False, default=func.now())
 
 
-class UserURLs(Base):
+class UserURL(Base):
     __tablename__ = "user_urls"
+    __table_args__ = (
+        UniqueConstraint("user_id", "url_id", "user_type_id", name="uq_user_url_type"),
+    )
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     url_id = Column(UUID(as_uuid=True), ForeignKey("urls.id"), nullable=False)

@@ -92,7 +92,7 @@ SELECT p."name", count(v."version") AS total_versions
 FROM packages p
 JOIN versions v ON p.id = v.package_id
 GROUP BY p."name"
-ORDER BY total_versions DESC
+ORDER BY total_versions DESC;
 ```
 
 ### ways to detect name squats
@@ -101,7 +101,39 @@ ORDER BY total_versions DESC
 SELECT left(p."name", 5), count(1) as number_of_packages
 FROM packages p
 GROUP BY left(p."name", 5)
-ORDER BY number_of_packages DESC
+ORDER BY number_of_packages DESC;
+```
+
+### url types available
+
+```sql
+SELECT ut."name", count(1)
+FROM package_urls pu
+JOIN url_types ut ON pu.url_type_id = ut.id
+GROUP BY ut."name";
+```
+
+### what platform is most used for code hosting?
+
+```sql
+SELECT
+	CASE
+		WHEN u.url ~ 'github' AND ut."name" = 'repository' THEN 'GitHub'
+		WHEN u.url ~ 'gitlab' AND ut."name" = 'repository' THEN 'GitLab'
+		ELSE 'Other'
+	END,
+	count(1)
+FROM package_urls pu
+JOIN urls u ON pu.url_id = u.id
+JOIN packages p ON pu.package_id = p.id
+JOIN url_types ut ON ut.id = pu.url_type_id
+WHERE ut."name" = 'repository'
+GROUP BY
+	CASE
+		WHEN u.url ~ 'github' AND ut."name" = 'repository' THEN 'GitHub'
+		WHEN u.url ~ 'gitlab' AND ut."name" = 'repository' THEN 'GitLab'
+		ELSE 'Other'
+	END;
 ```
 
 ## FAQs / common issues

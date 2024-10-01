@@ -7,7 +7,17 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.decl_api import DeclarativeMeta
 from sqlalchemy.orm.session import Session
-from src.pipeline.models import DependsOn, LoadHistory, Package, PackageManager, Version
+from src.pipeline.models import (
+    DependsOn,
+    LoadHistory,
+    Package,
+    PackageManager,
+    PackageURL,
+    URLType,
+    User,
+    URL,
+    Version,
+)
 from src.pipeline.utils.logger import Logger
 
 CHAI_DATABASE_URL = os.getenv("CHAI_DATABASE_URL")
@@ -158,6 +168,50 @@ class DB:
             dialect=dialect, compile_kwargs={"literal_binds": True}
         )
         self.logger.log(str(compiled_stmt))
+
+    def insert_users(self, user_generator: Iterable[dict[str, str]]):
+        def user_object_generator():
+            for item in user_generator:
+                username = item["username"]
+                yield User(username=username)
+
+        self._batch(user_object_generator(), User, 10000)
+
+    def insert_urls(self, url_generator: Iterable[str]):
+        def url_object_generator():
+            for item in url_generator:
+                yield URL(url=item)
+
+        self._batch(url_object_generator(), URL, 10000)
+
+    def insert_package_urls(self, package_url_generator: Iterable[dict[str, str]]):
+        def package_url_object_generator():
+            for item in package_url_generator:
+                yield PackageURL(
+                    package_id=item["package_id"],
+                    url_id=item["url_id"],
+                    url_type_id=item["url_type_id"],
+                )
+
+        self._batch(package_url_object_generator(), PackageURL)
+
+    def select_urls(self) -> List[URL]:
+        with self.session() as session:
+            return session.query(URL).all()
+
+    def select_url_types_homepages(self) -> List[URLType]:
+        with self.session() as session:
+            return session.query(URLType).filter_by(name="homepage").first().id
+
+    def select_url_types_repositories(self) -> List[URLType]:
+        with self.session() as session:
+            return session.query(URLType).filter_by(name="repository").first().id
+
+    def insert_url_types(self, name: str) -> UUID:
+        with self.session() as session:
+            session.add(URLType(name=name))
+            session.commit()
+            return session.query(URLType).filter_by(name=name).first().id
 
 
 if __name__ == "__main__":
