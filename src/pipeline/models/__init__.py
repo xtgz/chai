@@ -71,8 +71,19 @@ class URLType(Base):
     record_updated_at = Column(DateTime, nullable=False, default=func.now())
 
 
+# TODO: we can add the following fields to Version
+# - size (in bytes), definitely available from crates and NPM
+# - created_at (for release dates, definitely available from crates and NPM)
+#   > this is generally unreliable in PyPI
+#   > for pkgx and Homebrew, this should come from GH
+# - license
+# - downloads
+# - checksum / security stuff (definitely for crates and NPM)
 class Version(Base):
     __tablename__ = "versions"
+    __table_args__ = (
+        UniqueConstraint("package_id", "version", name="uq_package_version"),
+    )
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
     package_id = Column(UUID(as_uuid=True), ForeignKey("packages.id"), nullable=False)
     version = Column(String, nullable=False)

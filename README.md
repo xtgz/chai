@@ -100,7 +100,7 @@ GROUP BY p."name"
 ORDER BY total_versions DESC;
 ```
 
-### ways to detect name squats
+### some creative ways to detect name squats
 
 ```sql
 SELECT left(p."name", 5), count(1) as number_of_packages

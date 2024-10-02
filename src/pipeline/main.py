@@ -1,5 +1,4 @@
 import sys
-import traceback
 from os import getenv
 
 from src.pipeline.crates import get_crates_packages

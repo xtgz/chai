@@ -1,92 +1,35 @@
 import csv
 import os
-from dataclasses import dataclass, field
-from typing import Dict, Generator, List
+from typing import Dict
 
 from sqlalchemy import UUID
-from src.pipeline.models import Package, Version
+
 from src.pipeline.utils.logger import Logger
 
-# TODO: do we need to do that?
-# we do for now, but we can figure it out later
+# this is a temporary fix, but sometimes the raw files have weird characters
+# and lots of data within certain fields
+# this fix allows us to read the files with no hassles
 csv.field_size_limit(10000000)
 
 
-# this is a file buffer
-# it WILL NOT write a file anywhere
+# the transformer class knows what files to open, and provide a generic wrapper
+# for the data within the files
+# each package manager will have its own transformer, that knows what data needs to be
+# extracted for our data model
 class Transformer:
     def __init__(self, name: str):
         self.name = name
         self.input = f"data/{name}/latest"
         self.logger = Logger(f"{name}_transformer")
-
-    # knows what files to open
-    def transform(self) -> str:
-        # opens
-        pass
-
-    def projects(self, data: str):
-        pass
-
-    def versions(self, data: str):
-        pass
-
-    def dependencies(self, data: str):
-        pass
-
-
-@dataclass
-class Crate:
-    crate_id: int
-    name: str
-    versions: List[int] = field(default_factory=list)
-    urls: List[str] = field(default_factory=list)
-    db_id: UUID | None = None
-
-
-@dataclass
-class CrateVersion:
-    version_id: int
-    version: str
-    db_id: UUID | None = None
-
-
-@dataclass
-class User:
-    id: int
-    username: str
-    db_id: UUID | None = None
-
-
-@dataclass
-class URL:
-    type: str
-    db_id: UUID | None = None
-
-
-class CratesTransformer(Transformer):
-    def __init__(self, homepage_url_type_id: UUID, repository_url_type_id: UUID):
-        super().__init__("crates")
-        self.files = {
-            "projects": "crates.csv",
-            "versions": "versions.csv",
-            "dependencies": "dependencies.csv",
-            "users": "users.csv",
-            "urls": "crates.csv",
+        self.files: Dict[str, str] = {
+            "projects": "",
+            "versions": "",
+            "dependencies": "",
+            "users": "",
+            "urls": "",
         }
-        self.homepage_url_type_id = homepage_url_type_id
-        self.repository_url_type_id = repository_url_type_id
-        # TODO: we gotta redo this too, it works, but it's unnecessarily bulky
-        # the name_map is probably redundant, if we know the order of insertions
-        # postgres doesn't really do any reordering, so we can just use the index
-        self.crates: Dict[int, Crate] = {}
-        self.name_map: Dict[str, int] = {}
-        self.crate_versions: Dict[int, CrateVersion] = {}
-        self.num_map: Dict[str, int] = {}
-        self.user_map: Dict[int, User] = {}
-        self.url_map: Dict[str, URL] = {}
+        self.url_types: Dict[str, UUID] = {}
 
-    # TODO: can I move this to the transformer class?
     def finder(self, file_name: str) -> str:
         input_dir = os.path.realpath(self.input)
 
@@ -97,143 +40,11 @@ class CratesTransformer(Transformer):
             self.logger.error(f"{file_name} not found in {input_dir}")
             raise FileNotFoundError(f"Missing {file_name} file")
 
-    def packages(self) -> Generator[str, None, None]:
-        projects_path = self.finder(self.files["projects"])
+    def packages(self):
+        pass
 
-        with open(projects_path) as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                # TODO: note that the fact that the below happens within this method
-                # us also problematic, as we cannot run purely insert_versions, without
-                # running this
-
-                # track it in our map
-                crate_id = row["id"]
-                name = row["name"]
-                self.crates[crate_id] = Crate(crate_id=crate_id, name=name)
-                self.name_map[name] = crate_id
-
-                # get the homepage and repository urls
-                # but don't yield them yet
-                homepage_url = row["homepage"]
-                repository_url = row["repository"]
-
-                if homepage_url.strip():
-                    self.crates[crate_id].urls.append(homepage_url)
-                    self.url_map[homepage_url] = URL(
-                        type=self.homepage_url_type_id, db_id=None
-                    )
-                if repository_url.strip():
-                    self.crates[crate_id].urls.append(repository_url)
-                    self.url_map[repository_url] = URL(
-                        type=self.repository_url_type_id, db_id=None
-                    )
-
-                # yield name for loading into postgres
-                yield name
-
-    def versions(self) -> Generator[Dict[str, int], None, None]:
-        versions_path = self.finder(self.files["versions"])
-
-        with open(versions_path) as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                # track it on our crates map
-                crate_id = row["crate_id"]
-                if crate_id not in self.crates:
-                    raise ValueError(f"Crate {crate_id} not found in crates")
-                self.crates[crate_id].versions.append(row["num"])
-
-                # track it on our versions map
-                version_id = row["id"]
-                version_num = row["num"]
-                self.crate_versions[version_id] = CrateVersion(
-                    version_id=version_id, version=version_num
-                )
-                self.num_map[version_num] = version_id
-
-                # get the information we need
-                package_id = self.get_crate_db_id(crate_id)
-
-                yield {
-                    "package_id": package_id,
-                    "version": version_num,
-                }
+    def versions(self):
+        pass
 
     def dependencies(self):
-        dependencies_path = self.finder(self.files["dependencies"])
-
-        with open(dependencies_path) as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                start_id = row["version_id"]
-                end_id = row["dependency_id"]
-                semver = row["req"]
-
-                version_id = self.get_crate_version_db_id(start_id)
-                dependency_id = self.get_crate_db_id(end_id)
-                yield {
-                    "version_id": version_id,
-                    "dependency_id": dependency_id,
-                    "semver_range": semver,
-                }
-
-    # crate_owners.csv has the crate_id to user mapping
-    # we need to maintain the user_id to username mapping
-    def users(self):
-        users_path = self.finder(self.files["users"])
-
-        with open(users_path) as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                crates_user_id = row["id"]
-                username = row["gh_login"]
-                self.user_map[crates_user_id] = User(
-                    id=crates_user_id, username=username
-                )
-                yield {"username": username}
-
-    # note that this function does not open a file
-    # it actually yields a url, by going through the map which was already built
-    # TODO: we probably can avoid this double iteration (when populating it)
-    def urls(self):
-        for url in self.url_map.keys():
-            yield url
-
-    def url_types(self):
-        yield {"type": "homepage"}
-        yield {"type": "repository"}
-
-    def url_to_pkg(self):
-        for _, crate in self.crates.items():
-            for url in crate.urls:
-                yield {
-                    "package_id": crate.db_id,
-                    "url_id": self.url_map[url].db_id,
-                    # annoying, because i've got to know the id
-                    "url_type_id": self.url_map[url].type,
-                }
-
-    def get_crate_db_id(self, crate_id: int) -> UUID:
-        return self.crates[crate_id].db_id
-
-    def get_crate_version_db_id(self, version_id: int) -> UUID:
-        return self.crate_versions[version_id].db_id
-
-    def update_crates_db_ids(self, packages: List[Package]):
-        for pkg in packages:
-            try:
-                crate_id = self.name_map[pkg.name]
-                self.crates[crate_id].db_id = pkg.id
-            except KeyError:
-                self.logger.warn(f"pkg {pkg.name} not found in name map")
-
-    def update_crates_versions_db_ids(self, versions: List[Version]):
-        for version in versions:
-            # version is a number and a package_id
-            crate_version_id = self.num_map[version.version]
-            self.crate_versions[crate_version_id].db_id = version.id
-
-    def update_crates_urls_db_ids(self, urls: List[URL]):
-        for url in urls:
-            self.url_map[url.url].db_id = url.id
+        pass

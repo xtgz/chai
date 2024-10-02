@@ -30,7 +30,8 @@ class DB:
         self.session = sessionmaker(self.engine)
         self.logger.debug("connected")
 
-    # TODO: move to transformer_v2
+    # TODO: the database client should not handle batching
+    # we should move this to the transformer
     def _batch(
         self,
         items: Iterable[DeclarativeMeta],
@@ -64,7 +65,7 @@ class DB:
         inserts a batch of items, any model, into the database
         however, this mandates `on conflict do nothing`
         """
-        # we use statements here, not ORMs because of the on_conflict_do_nothing
+        # we use statements here, not the ORM because of the on_conflict_do_nothing
         # https://github.com/sqlalchemy/sqlalchemy/issues/5374
         stmt = (
             insert(model)
@@ -77,7 +78,8 @@ class DB:
         self, package_generator: Iterable[str], package_manager: PackageManager
     ) -> List[UUID]:
         def package_object_generator():
-            for name in package_generator:
+            for item in package_generator:
+                name = item["name"]
                 yield Package(
                     derived_id=f"{package_manager.name}/{name}",
                     name=name,
