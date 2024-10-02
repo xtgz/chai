@@ -24,12 +24,13 @@ class CratesTransformer(Transformer):
             "repository": repository_url_type_id,
         }
         # TODO: see line 54 in crates.py, but we need to reduce the number of Dicts
-        # we are creating to just 2:
-        # Dict[crate_id, Crate] and Dict[version_id, CrateVersion]
+        # Dict[crate_id, Crate] and Dict[version_id, CrateVersion] are all I need
+
         # some considerations for a solution:
         # - where do we populate the maps? definitely upon loading the packages. should
         #   we populate them as we go? or keep that separate? the tradeoff is simplicity
         #   vs. performance. i'd have to iterate twice, but the simplicity is nice
+        # - add `import_id`
         self.crates: Dict[int, Crate] = {}
         self.name_map: Dict[str, int] = {}
         self.crate_versions: Dict[int, CrateVersion] = {}

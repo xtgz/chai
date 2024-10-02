@@ -141,6 +141,17 @@ GROUP BY
 	END;
 ```
 
+### packages where we're missing repo urls
+
+```sql
+SELECT p."name"
+FROM packages p
+LEFT JOIN package_urls pu ON p.id = pu.package_id AND pu.url_type_id = (
+    SELECT id FROM url_types WHERE "name" = 'repository'
+)
+WHERE pu.id IS NULL;
+```
+
 ## FAQs / common issues
 
 1. the database url is `postgresql://postgres:s3cr3t@localhost:5435/chai`, and is used

@@ -23,6 +23,7 @@ from src.pipeline.utils.logger import Logger
 CHAI_DATABASE_URL = os.getenv("CHAI_DATABASE_URL")
 
 
+# ORMs suck, go back to SQL
 class DB:
     def __init__(self):
         self.logger = Logger("DB")

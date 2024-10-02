@@ -22,8 +22,14 @@ metadata = MetaData(naming_convention=naming_convention)
 Base = declarative_base(metadata=metadata)
 
 
-# record_created_at, record_updated_at are always set to the current timestamp
+# TODO: created_at, updated_at are always set to the current timestamp
 # and should always be part of every single table
+
+
+# TODO:
+# - can we store README?
+# - index on name
+# - add import_id, with index
 class Package(Base):
     __tablename__ = "packages"
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
@@ -188,3 +194,8 @@ class UserURL(Base):
     )
     record_created_at = Column(DateTime, nullable=False, default=func.now())
     record_updated_at = Column(DateTime, nullable=False, default=func.now())
+
+
+# TODO: add models for
+# - UserVersion
+# - UserPackage
