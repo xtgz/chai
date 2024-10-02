@@ -204,11 +204,15 @@ class DB:
 
     def select_url_types_homepages(self) -> List[URLType]:
         with self.session() as session:
-            return session.query(URLType).filter_by(name="homepage").first().id
+            result = session.query(URLType).filter_by(name="homepage").first()
+            if result:
+                return result.id
 
     def select_url_types_repositories(self) -> List[URLType]:
         with self.session() as session:
-            return session.query(URLType).filter_by(name="repository").first().id
+            result = session.query(URLType).filter_by(name="repository").first()
+            if result:
+                return result.id
 
     def insert_url_types(self, name: str) -> UUID:
         with self.session() as session:
