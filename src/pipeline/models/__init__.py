@@ -29,12 +29,6 @@ metadata = MetaData(naming_convention=naming_convention)
 Base = declarative_base(metadata=metadata)
 
 
-# created_at, updated_at are always set to the current timestamp
-# and should always be part of every single table
-
-
-# TODO:
-# - can we store README?
 class Package(Base):
     __tablename__ = "packages"
     __table_args__ = (
@@ -52,7 +46,7 @@ class Package(Base):
     # the import_id is from our data source (e.g., crate_id)
     # it is non-nullable, and we'll default to name if not provided by source
     import_id = Column(String, nullable=False, index=True)
-    readme = Column(String, nullable=True)  # definitely no indexing here...
+    readme = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now())
 
@@ -203,6 +197,7 @@ class User(Base):
     __tablename__ = "users"
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
     username = Column(String, nullable=False, unique=True)
+    import_id = Column(String, nullable=False, unique=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now())
 

@@ -8,5 +8,9 @@ done
 
 # migrate
 echo "db currently at $(pkgx +alembic +psycopg.org/psycopg2 alembic current)"
-pkgx +alembic +psycopg.org/psycopg2 alembic upgrade head
-echo "migrations run"
+if pkgx +alembic +psycopg.org/psycopg2 alembic upgrade head; then
+  echo "migrations run successfully"
+else
+  echo "migrations failed"
+  exit 1
+fi

@@ -9,6 +9,7 @@ from sqlalchemy.orm.decl_api import DeclarativeMeta
 from sqlalchemy.orm.session import Session
 from src.pipeline.models import (
     DependsOn,
+    License,
     LoadHistory,
     Package,
     PackageManager,
@@ -75,6 +76,13 @@ class DB:
         )
         session.execute(stmt)
 
+    # TODO: inefficient insertion processes
+    # the following functions are all about insertions
+    # since we store `import_ids` in the db, we query the db for every single
+    # insertion, which is not ideal
+    # since we're removing ORMs completely, we should be able to batch
+    # these queries as well
+
     def insert_packages(
         self, package_generator: Iterable[str], package_manager: PackageManager
     ) -> List[UUID]:
@@ -96,27 +104,63 @@ class DB:
     def insert_versions(self, version_generator: Iterable[dict[str, str]]):
         def version_object_generator():
             for item in version_generator:
-                package_id = item["package_id"]
+                crate_id = item["crate_id"]
                 version = item["version"]
                 import_id = item["import_id"]
+                size = item["size"]
+                published_at = item["published_at"]
+                license_name = item["license"]
+                downloads = item["downloads"]
+                checksum = item["checksum"]
+
+                # the crate_id is a Package.import_id
+                package = self.select_package_by_import_id(crate_id)
+                if package is None:
+                    self.logger.warn(f"package with import_id {crate_id} not found")
+                    continue
+                package_id = package.id
+
+                # similarly, for license_id
+                license_id = self.select_license_by_name(license_name, create=True)
+
                 yield Version(
                     package_id=package_id,
                     version=version,
                     import_id=import_id,
+                    size=size,
+                    published_at=published_at,
+                    license_id=license_id,
+                    downloads=downloads,
+                    checksum=checksum,
                 )
 
-        self._batch(version_object_generator(), Version, 10000)
+        self._batch(version_object_generator(), Version)
 
     def insert_dependencies(self, dependency_generator: Iterable[dict[str, str]]):
         def dependency_object_generator():
             for item in dependency_generator:
-                version_id = item["version_id"]
-                dependency_id = item["dependency_id"]
+                start_id = item["start_id"]
+                end_id = item["end_id"]
                 semver_range = item["semver_range"]
+                dependency_type = item["dependency_type"]
+
+                version = self.select_version_by_import_id(start_id)
+                if version is None:
+                    self.logger.warn(f"version with import_id {start_id} not found")
+                    continue
+                version_id = version.id
+
+                dependency = self.select_package_by_import_id(end_id)
+                if dependency is None:
+                    self.logger.warn(f"package with import_id {end_id} not found")
+                    continue
+                dependency_id = dependency.id
+
                 yield DependsOn(
                     version_id=version_id,
                     dependency_id=dependency_id,
                     semver_range=semver_range,
+                    # dependency_type=dependency_type, TODO: add this
                 )
 
         self._batch(dependency_object_generator(), DependsOn, 10000)
@@ -126,20 +170,9 @@ class DB:
             session.add(LoadHistory(package_manager_id=package_manager_id))
             session.commit()
 
-    def get_package_manager_id(self, package_manager: str):
-        with self.session() as session:
-            result = (
-                session.query(PackageManager).filter_by(name=package_manager).first()
-            )
-
-            if result:
-                self.logger.debug(f"id: {result.id}")
-                return result.id
-            return None
-
     def insert_package_manager(self, package_manager: str) -> UUID | None:
         with self.session() as session:
-            exists = self.get_package_manager_id(package_manager) is not None
+            exists = self.select_package_manager_id(package_manager) is not None
             if not exists:
                 session.add(PackageManager(name=package_manager))
                 session.commit()
@@ -150,33 +183,11 @@ class DB:
                     .id
                 )
 
-    def select_packages_by_package_manager(
-        self, package_manager: PackageManager
-    ) -> List[Package]:
+    def insert_url_types(self, name: str) -> UUID:
         with self.session() as session:
-            return (
-                session.query(Package)
-                .filter_by(package_manager_id=package_manager.id)
-                .all()
-            )
-
-    def select_versions_by_package_manager(
-        self, package_manager: PackageManager
-    ) -> List[Version]:
-        with self.session() as session:
-            return (
-                session.query(Version)
-                .join(Package)
-                .filter(Package.package_manager_id == package_manager.id)
-                .all()
-            )
-
-    def print_statement(self, stmt):
-        dialect = postgresql.dialect()
-        compiled_stmt = stmt.compile(
-            dialect=dialect, compile_kwargs={"literal_binds": True}
-        )
-        self.logger.log(str(compiled_stmt))
+            session.add(URLType(name=name))
+            session.commit()
+            return session.query(URLType).filter_by(name=name).first().id
 
     def insert_users(self, user_generator: Iterable[dict[str, str]]):
         def user_object_generator():
@@ -204,9 +215,12 @@ class DB:
 
         self._batch(package_url_object_generator(), PackageURL)
 
-    def select_urls(self) -> List[URL]:
-        with self.session() as session:
-            return session.query(URL).all()
+    def print_statement(self, stmt):
+        dialect = postgresql.dialect()
+        compiled_stmt = stmt.compile(
+            dialect=dialect, compile_kwargs={"literal_binds": True}
+        )
+        self.logger.log(str(compiled_stmt))
 
     def select_url_types_homepages(self) -> List[URLType]:
         with self.session() as session:
@@ -220,17 +234,54 @@ class DB:
             if result:
                 return result.id
 
-    def insert_url_types(self, name: str) -> UUID:
+    def select_package_manager_id(
+        self, package_manager: str, create: bool = False
+    ) -> UUID | None:
         with self.session() as session:
-            session.add(URLType(name=name))
-            session.commit()
-            return session.query(URLType).filter_by(name=name).first().id
+            result = (
+                session.query(PackageManager).filter_by(name=package_manager).first()
+            )
+
+            if result:
+                self.logger.debug(f"id: {result.id}")
+                return result.id
+            if create:
+                session.add(PackageManager(name=package_manager))
+                session.commit()
+                return (
+                    session.query(PackageManager)
+                    .filter_by(name=package_manager)
+                    .first()
+                    .id
+                )
+            return None
+
+    def select_package_by_import_id(self, import_id: str) -> Package | None:
+        with self.session() as session:
+            result = session.query(Package).filter_by(import_id=import_id).first()
+            if result:
+                return result
+
+    def select_license_by_name(
+        self, license_name: str, create: bool = False
+    ) -> UUID | None:
+        with self.session() as session:
+            result = session.query(License).filter_by(name=license_name).first()
+            if result:
+                return result.id
+            if create:
+                session.add(License(name=license_name))
+                session.commit()
+                return session.query(License).filter_by(name=license_name).first().id
+            return None
+
+    def select_version_by_import_id(self, import_id: str) -> Version | None:
+        with self.session() as session:
+            result = session.query(Version).filter_by(import_id=import_id).first()
+            if result:
+                return result
 
 
 if __name__ == "__main__":
     db = DB()
     # random tests
-    package_manager = PackageManager(
-        name="crates", id=db.get_package_manager_id("crates")
-    )
-    print(db.select_package_manager_versions(package_manager))
