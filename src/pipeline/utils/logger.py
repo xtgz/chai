@@ -20,7 +20,6 @@ class Logger:
         self.name = name
         self.start = start
         self.mode = int(mode)
-        self.debug("logging is working")
 
     def print(self, msg: str):
         print(f"{self.time_diff():.2f}: [{self.name}]: {msg}")

@@ -61,6 +61,8 @@ class Package(Base):
             "derived_id": self.derived_id,
             "name": self.name,
             "package_manager_id": self.package_manager_id,
+            "import_id": self.import_id,
+            "readme": self.readme,
         }
 
 
@@ -100,6 +102,7 @@ class Version(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
     package_id = Column(UUID(as_uuid=True), ForeignKey("packages.id"), nullable=False)
     version = Column(String, nullable=False, index=True)
+    import_id = Column(String, nullable=False, index=True)
     # size, published_at, license_id, downloads, checksum
     # are nullable bc not all sources provide them
     size = Column(Integer, nullable=True, index=True)
@@ -114,7 +117,16 @@ class Version(Base):
     # license: Mapped["License"] = relationship()
 
     def to_dict(self):
-        return {"package_id": self.package_id, "version": self.version}
+        return {
+            "package_id": self.package_id,
+            "version": self.version,
+            "import_id": self.import_id,
+            "size": self.size,
+            "published_at": self.published_at,
+            "license_id": self.license_id,
+            "downloads": self.downloads,
+            "checksum": self.checksum,
+        }
 
 
 class License(Base):

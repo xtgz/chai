@@ -47,6 +47,7 @@ class CratesTransformer(Transformer):
                 # track it in our map
                 crate_id = row["id"]
                 name = row["name"]
+                readme = row["readme"]
                 self.crates[crate_id] = Crate(crate_id=crate_id, name=name)
                 self.name_map[name] = crate_id
 
@@ -67,7 +68,7 @@ class CratesTransformer(Transformer):
                     )
 
                 # yield name for loading into postgres
-                yield {"name": name}
+                yield {"name": name, "import_id": crate_id, "readme": readme}
 
     def versions(self) -> Generator[Dict[str, int], None, None]:
         versions_path = self.finder(self.files["versions"])
@@ -76,6 +77,7 @@ class CratesTransformer(Transformer):
             reader = csv.DictReader(f)
             for row in reader:
                 # track it on our crates map
+                version_id = row["id"]
                 crate_id = row["crate_id"]
                 if crate_id not in self.crates:
                     raise ValueError(f"Crate {crate_id} not found in crates")
@@ -95,6 +97,7 @@ class CratesTransformer(Transformer):
                 yield {
                     "package_id": package_id,
                     "version": version_num,
+                    "import_id": version_id,
                 }
 
     def dependencies(self):

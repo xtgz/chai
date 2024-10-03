@@ -81,22 +81,28 @@ class DB:
         def package_object_generator():
             for item in package_generator:
                 name = item["name"]
+                import_id = item["import_id"]
+                readme = item["readme"]
                 yield Package(
                     derived_id=f"{package_manager.name}/{name}",
                     name=name,
                     package_manager_id=package_manager.id,
+                    import_id=import_id,
+                    readme=readme,
                 )
 
-        return self._batch(package_object_generator(), Package, 10000)
+        return self._batch(package_object_generator(), Package)
 
     def insert_versions(self, version_generator: Iterable[dict[str, str]]):
         def version_object_generator():
             for item in version_generator:
                 package_id = item["package_id"]
                 version = item["version"]
+                import_id = item["import_id"]
                 yield Version(
                     package_id=package_id,
                     version=version,
+                    import_id=import_id,
                 )
 
         self._batch(version_object_generator(), Version, 10000)
