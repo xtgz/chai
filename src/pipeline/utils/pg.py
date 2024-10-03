@@ -1,7 +1,7 @@
 import os
 from typing import Iterable, List, Type
 
-from sqlalchemy import UUID, create_engine
+from sqlalchemy import UUID, create_engine, func
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import sessionmaker
@@ -156,14 +156,19 @@ class DB:
                     continue
                 dependency_id = dependency.id
 
+                now = func.now()
+
                 yield DependsOn(
                     version_id=version_id,
                     dependency_id=dependency_id,
                     semver_range=semver_range,
+                    # TODO: db should do this
+                    created_at=now,
+                    updated_at=now,
                     # dependency_type=dependency_type, TODO: add this
                 )
 
-        self._batch(dependency_object_generator(), DependsOn, 10000)
+        self._batch(dependency_object_generator(), DependsOn, 100000)
 
     def insert_load_history(self, package_manager_id: str):
         with self.session() as session:

@@ -149,6 +149,7 @@ class DependsOn(Base):
     # ideally, these are non-nullable but diff package managers are picky about this
     dependency_type = Column(String, nullable=True)
     semver_range = Column(String, nullable=True)
+    # TODO: make these default now now
     created_at = Column(DateTime, nullable=False)
     updated_at = Column(DateTime, nullable=False)
 
@@ -156,8 +157,8 @@ class DependsOn(Base):
         return {
             "version_id": self.version_id,
             "dependency_id": self.dependency_id,
-            "dependency_type": self.dependency_type,
             "semver_range": self.semver_range,
+            # "dependency_type": self.dependency_type,
         }
 
 

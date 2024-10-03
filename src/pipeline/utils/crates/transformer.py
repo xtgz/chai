@@ -71,9 +71,9 @@ class CratesTransformer(Transformer):
             reader = csv.DictReader(f)
             for row in reader:
                 start_id = row["version_id"]
-                end_id = row["dependency_id"]
+                end_id = row["crate_id"]
                 req = row["req"]
-                kind = row["kind"]
+                kind = int(row["kind"])
 
                 # map string to enum
                 dependency_type = DependencyType(kind)
