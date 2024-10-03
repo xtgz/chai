@@ -43,3 +43,16 @@ services:
       alembic:
         condition: service_completed_successfully
     entrypoint: ["./src/run_pipeline.sh"]
+
+  monitor:
+    build: monitor
+    environment:
+      - DOCKER_HOST=${DOCKER_HOST:-unix:///var/run/docker.sock}
+    volumes:
+      - ./monitor:/app
+      - /var/run/docker.sock:/var/run/docker.sock
+    working_dir: /app
+    depends_on:
+      pipeline:
+        condition: service_started
+    entrypoint: ["./run_monitor.sh"]
