@@ -267,7 +267,7 @@ class DB:
 
             if create:
                 source = self.insert_source(package_manager)
-                return self.insert_package_manager(source.id)
+                return self.insert_package_manager(source)
 
             return None
 
