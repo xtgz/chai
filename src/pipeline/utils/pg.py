@@ -1,4 +1,6 @@
+import json
 import os
+import sys
 from typing import Iterable, List, Type
 
 from sqlalchemy import UUID, create_engine, func
@@ -107,6 +109,14 @@ class DB:
                 )
 
         return self._batch(package_object_generator(), Package, DEFAULT_BATCH_SIZE)
+
+    def insert_packages_v2(self):
+        for line in sys.stdin:
+            batch = json.loads(line)
+            self._insert_batch_v2(batch, Package)
+
+    def _insert_batch_v2(self, batch: List[dict], model: Type[DeclarativeMeta]):
+        pass
 
     def insert_versions(self, version_generator: Iterable[dict[str, str]]):
         def version_object_generator():

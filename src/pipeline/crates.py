@@ -2,6 +2,7 @@ from src.pipeline.utils.fetcher import TarballFetcher
 from src.pipeline.utils.logger import Logger
 from src.pipeline.utils.pg import DB
 from src.pipeline.utils.crates.transformer import CratesTransformer
+from src.pipeline.utils.crates.transformer_v2 import CratesTransformerV2
 
 FILE_LOCATION = "https://static.crates.io/db-dump.tar.gz"
 
@@ -38,7 +39,8 @@ def get_crates_packages(db: DB) -> None:
     fetcher.write(files)
 
     # use the transformer to figure out what we'd need for our ranker
-    transformer = CratesTransformer(homepage_url_type_id, repository_url_type_id)
+    # transformer = CratesTransformer(homepage_url_type_id, repository_url_type_id)
+    transformer = CratesTransformerV2()
     logger.log("transforming crates packages")
 
     # load the projects, versions, and dependencies into our db
@@ -48,10 +50,10 @@ def get_crates_packages(db: DB) -> None:
     db.insert_packages(transformer.packages(), package_manager.id, "crates")
 
     # versions
-    db.insert_versions(transformer.versions())
+    # db.insert_versions(transformer.versions())
 
-    # dependencies
-    db.insert_dependencies(transformer.dependencies())
+    # # dependencies
+    # db.insert_dependencies(transformer.dependencies())
 
     # insert load history
     db.insert_load_history(package_manager.id)
