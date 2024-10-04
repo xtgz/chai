@@ -45,7 +45,7 @@ def get_crates_packages(db: DB) -> None:
     logger.log("loading crates packages into db, currently this might take a while")
 
     # packages
-    db.insert_packages(transformer.packages(), package_manager)
+    db.insert_packages(transformer.packages(), package_manager.id, "crates")
 
     # versions
     db.insert_versions(transformer.versions())

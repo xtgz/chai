@@ -86,24 +86,22 @@ class DB:
     # these queries as well
 
     def insert_packages(
-        self, package_generator: Iterable[str], package_manager: PackageManager
+        self,
+        package_generator: Iterable[str],
+        package_manager_id: UUID,
+        package_manager_name: str,
     ) -> List[UUID]:
         def package_object_generator():
             for item in package_generator:
                 name = item["name"]
                 import_id = item["import_id"]
                 readme = item["readme"]
+                derived_id = f"{package_manager_name}/{name}"
 
-                # TODO: this is awful
-                package_manager_name = self.select_package_manager_name_by_id(
-                    package_manager.id
-                )
-
-                # get the package manager name
                 yield Package(
-                    derived_id=f"{package_manager_name}/{name}",
+                    derived_id=derived_id,
                     name=name,
-                    package_manager_id=package_manager.id,
+                    package_manager_id=package_manager_id,
                     import_id=import_id,
                     readme=readme,
                 )
