@@ -94,6 +94,7 @@ class DB:
                 import_id = item["import_id"]
                 readme = item["readme"]
 
+                # TODO: this is awful
                 package_manager_name = self.select_package_manager_name_by_id(
                     package_manager.id
                 )
@@ -248,13 +249,14 @@ class DB:
             if result:
                 return result.id
 
-    def select_package_manager_id(
+    # TODO: rename this to select_package_manager
+    def select_package_manager_by_name(
         self, package_manager: str, create: bool = False
     ) -> PackageManager | None:
         with self.session() as session:
             # get the package manager
             result = (
-                session.query(PackageManager.id)
+                session.query(PackageManager)
                 .join(Source, PackageManager.source_id == Source.id)
                 .filter(Source.type == package_manager)
                 .first()

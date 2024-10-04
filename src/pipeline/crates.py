@@ -17,7 +17,7 @@ logger = Logger("crates_orchestrator", mode=Logger.VERBOSE)
 # 3. load the data into the db
 def get_crates_packages(db: DB) -> None:
     # get crates's package manager id, insert it if it doesn't exist
-    package_manager = db.select_package_manager_id("crates", create=True)
+    package_manager = db.select_package_manager_by_name("crates", create=True)
 
     # get the homepage and repository url types, insert them if they don't exist
     # homepage / repository because that is what crates provides
