@@ -202,14 +202,14 @@ class DB:
         self._batch(user_object_generator(), User, DEFAULT_BATCH_SIZE)
 
     def insert_user_packages(
-        self, user_package_generator: Iterable[dict[str, str]], crates_sources_id: UUID
+        self, user_package_generator: Iterable[dict[str, str]], source_id: UUID
     ):
         def user_package_object_generator():
             for item in user_package_generator:
                 crate_id = item["crate_id"]
                 owner_id = item["owner_id"]
 
-                user = self.select_crates_user_by_import_id(owner_id, crates_sources_id)
+                user = self.select_crates_user_by_import_id(owner_id, source_id)
                 if user is None:
                     self.logger.warn(f"user with import_id {owner_id} not found")
                     continue
@@ -224,14 +224,14 @@ class DB:
         self._batch(user_package_object_generator(), UserPackage, DEFAULT_BATCH_SIZE)
 
     def insert_user_versions(
-        self, user_version_generator: Iterable[dict[str, str]], crates_sources_id: UUID
+        self, user_version_generator: Iterable[dict[str, str]], source_id: UUID
     ):
         def user_version_object_generator():
             for item in user_version_generator:
                 version_id = item["version_id"]
                 user_id = item["published_by"]
 
-                user = self.select_crates_user_by_import_id(user_id, crates_sources_id)
+                user = self.select_crates_user_by_import_id(user_id, source_id)
                 if user is None:
                     self.logger.warn(f"user with import_id {user_id} not found")
                     continue
@@ -248,20 +248,40 @@ class DB:
     def insert_urls(self, url_generator: Iterable[str]):
         def url_object_generator():
             for item in url_generator:
-                yield URL(url=item)
+                url = item["url"]
+                url_type_id = item["url_type_id"]
+                yield URL(url=url, url_type_id=url_type_id)
 
         self._batch(url_object_generator(), URL, DEFAULT_BATCH_SIZE)
 
     def insert_package_urls(self, package_url_generator: Iterable[dict[str, str]]):
         def package_url_object_generator():
             for item in package_url_generator:
+                package_import_id = item["import_id"]
+                url = item["url"]
+                url_type_id = item["url_type_id"]
+
+                self.logger.debug(f"looking for package {package_import_id}")
+                package = self.select_package_by_import_id(package_import_id)
+                if package is None:
+                    self.logger.warn(
+                        f"package with import_id {package_import_id} not found"
+                    )
+                    continue
+                package_id = package.id
+
+                url = self.select_url_by_url_and_type(url, url_type_id)
+                if url is None:
+                    self.logger.warn(f"url {url} not found")
+                    continue
+                url_id = url.id
+
                 yield PackageURL(
-                    package_id=item["package_id"],
-                    url_id=item["url_id"],
-                    url_type_id=item["url_type_id"],
+                    package_id=package_id,
+                    url_id=url_id,
                 )
 
-        self._batch(package_url_object_generator(), PackageURL)
+        self._batch(package_url_object_generator(), PackageURL, DEFAULT_BATCH_SIZE / 10)
 
     def insert_source(self, name: str) -> UUID:
         with self.session() as session:
@@ -296,6 +316,9 @@ class DB:
 
     def select_url_types_repository(self, create: bool = False) -> URLType | None:
         return self.select_url_type("repository", create)
+
+    def select_url_types_documentation(self, create: bool = False) -> URLType | None:
+        return self.select_url_type("documentation", create)
 
     # TODO: rename this to select_package_manager
     def select_package_manager_by_name(
@@ -378,8 +401,10 @@ class DB:
             if result:
                 return result
 
-
-if __name__ == "__main__":
-    db = DB()
-
-    # random tests
+    def select_url_by_url_and_type(self, url: str, url_type_id: UUID) -> URL | None:
+        with self.session() as session:
+            result = (
+                session.query(URL).filter_by(url=url, url_type_id=url_type_id).first()
+            )
+            if result:
+                return result

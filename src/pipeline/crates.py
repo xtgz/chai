@@ -32,9 +32,14 @@ def initialize(db: DB) -> Config:
     package_manager = db.select_package_manager_by_name("crates", create=True)
     homepage_url = db.select_url_types_homepage(create=True)
     repository_url = db.select_url_types_repository(create=True)
+    documentation_url = db.select_url_types_documentation(create=True)
     crates_source = db.select_source_by_name("crates", create=True)
     github_source = db.select_source_by_name("github", create=True)
-    url_types = URLTypes(homepage=homepage_url.id, repository=repository_url.id)
+    url_types = URLTypes(
+        homepage=homepage_url.id,
+        repository=repository_url.id,
+        documentation=documentation_url.id,
+    )
     user_types = UserTypes(crates=crates_source.id, github=github_source.id)
 
     logger.debug("initialized config")
@@ -55,19 +60,21 @@ def fetch(config: Config) -> None:
 
 
 def load(db: DB, transformer: CratesTransformer, config: Config) -> None:
-    # always inserts user and packages
     db.insert_packages(transformer.packages(), config.package_manager_id, "crates")
-    db.insert_users(transformer.users())
 
     # crates provides a gh_login for every single crate publisher
-    # this is the only user type we load, with the GitHub source as `source_id`
+    # so, we use the GitHub source as `source_id`
+    db.insert_users(transformer.users())
     db.insert_user_packages(transformer.user_packages(), config.user_types.github)
 
-    db.insert_versions(transformer.versions())
-    db.insert_user_versions(transformer.user_versions(), config.user_types.github)
+    # crates provides a homepage, repository, and documentation url for every crate
+    db.insert_urls(transformer.urls())
 
     if not config.test:
         # these are bigger files, so we skip them in tests
+        db.insert_versions(transformer.versions())
+        db.insert_user_versions(transformer.user_versions(), config.user_types.github)
+        db.insert_package_urls(transformer.package_urls())
         db.insert_dependencies(transformer.dependencies())
 
     db.insert_load_history(config.package_manager_id)
