@@ -200,22 +200,30 @@ class URLType(Base):
     updated_at = Column(DateTime, nullable=False, default=func.now())
 
 
+# usernames can come from different sources, but within a source, they are probably unique
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         UniqueConstraint("source_id", "import_id", name="uq_source_import_id"),
     )
+    __table_args__ = (
+        UniqueConstraint("source_id", "username", name="uq_source_username"),
+    )
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
-    username = Column(String, nullable=False, unique=True, index=True)
+    username = Column(String, nullable=False, index=True)
     source_id = Column(
         UUID(as_uuid=True), ForeignKey("sources.id"), nullable=False, index=True
     )
-    import_id = Column(String, nullable=False, unique=True, index=True)
+    import_id = Column(String, nullable=False, unique=False, index=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now())
 
     def to_dict(self):
-        return {"username": self.username}
+        return {
+            "username": self.username,
+            "source_id": self.source_id,
+            "import_id": self.import_id,
+        }
 
 
 class UserVersion(Base):
@@ -233,6 +241,12 @@ class UserVersion(Base):
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now())
 
+    def to_dict(self):
+        return {
+            "user_id": self.user_id,
+            "version_id": self.version_id,
+        }
+
 
 class UserPackage(Base):
     __tablename__ = "user_packages"
@@ -248,6 +262,12 @@ class UserPackage(Base):
     )
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now())
+
+    def to_dict(self):
+        return {
+            "user_id": self.user_id,
+            "package_id": self.package_id,
+        }
 
 
 class PackageURL(Base):

@@ -1,16 +1,15 @@
 import csv
 from typing import Dict, Generator
-from sqlalchemy import UUID
 
 from src.pipeline.utils.utils import safe_int
-from src.pipeline.utils.crates.structures import DependencyType
+from src.pipeline.utils.crates.structures import DependencyType, URLTypes, UserTypes
 from src.pipeline.utils.transformer import Transformer
 
 
 # crates provides homepage and repository urls, so we'll initialize this transformer
 # with the ids for those url types
 class CratesTransformer(Transformer):
-    def __init__(self, homepage_url_type_id: UUID, repository_url_type_id: UUID):
+    def __init__(self, url_types: URLTypes, user_types: UserTypes):
         super().__init__("crates")
         self.files = {
             "projects": "crates.csv",
@@ -18,11 +17,11 @@ class CratesTransformer(Transformer):
             "dependencies": "dependencies.csv",
             "users": "users.csv",
             "urls": "crates.csv",
+            "user_packages": "crate_owners.csv",
+            "user_versions": "versions.csv",
         }
-        self.url_types = {
-            "homepage": homepage_url_type_id,
-            "repository": repository_url_type_id,
-        }
+        self.url_types = url_types
+        self.user_types = user_types
 
     def packages(self) -> Generator[str, None, None]:
         projects_path = self.finder(self.files["projects"])
@@ -84,3 +83,63 @@ class CratesTransformer(Transformer):
                     "semver_range": req,
                     "dependency_type": dependency_type,
                 }
+
+    # gh_id is unique to github, and is from GitHub
+    # our users table is unique on import_id and source_id
+    # so, we actually get some github data for free here!
+    def users(self):
+        users_path = self.finder(self.files["users"])
+        usernames = set()
+
+        with open(users_path) as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                gh_login = row["gh_login"]
+                id = row["id"]
+
+                # deduplicate
+                if gh_login in usernames:
+                    self.logger.warn(f"duplicate username: {id}, {gh_login}")
+                    continue
+                usernames.add(gh_login)
+
+                # gh_login is a non-nullable column in crates, so we'll always be
+                # able to load this
+                source_id = self.user_types.github
+                yield {"import_id": id, "username": gh_login, "source_id": source_id}
+
+    # for crate_owners, owner_id and created_by are foreign keys on users.id
+    # and owner_kind is 0 for user and 1 for team
+    # secondly, created_at is nullable. we'll ignore for now and focus on owners
+    def user_packages(self):
+        user_packages_path = self.finder(self.files["user_packages"])
+
+        with open(user_packages_path) as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                owner_kind = int(row["owner_kind"])
+                if owner_kind == 1:
+                    continue
+
+                crate_id = row["crate_id"]
+                owner_id = row["owner_id"]
+
+                yield {
+                    "crate_id": crate_id,
+                    "owner_id": owner_id,
+                }
+
+    # TODO: here, we are in the business of reopning files we've already opened before
+    def user_versions(self):
+        user_versions_path = self.finder(self.files["user_versions"])
+
+        with open(user_versions_path) as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                version_id = row["id"]
+                published_by = row["published_by"]
+
+                if published_by == "":
+                    continue
+
+                yield {"version_id": version_id, "published_by": published_by}

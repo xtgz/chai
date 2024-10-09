@@ -18,6 +18,8 @@ from src.pipeline.models import (
     URLType,
     User,
     URL,
+    UserPackage,
+    UserVersion,
     Version,
 )
 from src.pipeline.utils.logger import Logger
@@ -182,19 +184,66 @@ class DB:
             session.add(LoadHistory(package_manager_id=package_manager_id))
             session.commit()
 
-    def insert_url_types(self, name: str) -> UUID:
+    def insert_url_types(self, name: str) -> URLType:
         with self.session() as session:
             session.add(URLType(name=name))
             session.commit()
-            return session.query(URLType).filter_by(name=name).first().id
+            return session.query(URLType).filter_by(name=name).first()
 
     def insert_users(self, user_generator: Iterable[dict[str, str]]):
         def user_object_generator():
             for item in user_generator:
                 username = item["username"]
-                yield User(username=username)
+                import_id = item["import_id"]
+                source_id = item["source_id"]
+
+                yield User(username=username, import_id=import_id, source_id=source_id)
 
         self._batch(user_object_generator(), User, DEFAULT_BATCH_SIZE)
+
+    def insert_user_packages(
+        self, user_package_generator: Iterable[dict[str, str]], crates_sources_id: UUID
+    ):
+        def user_package_object_generator():
+            for item in user_package_generator:
+                crate_id = item["crate_id"]
+                owner_id = item["owner_id"]
+
+                user = self.select_crates_user_by_import_id(owner_id, crates_sources_id)
+                if user is None:
+                    self.logger.warn(f"user with import_id {owner_id} not found")
+                    continue
+
+                package = self.select_package_by_import_id(crate_id)
+                if package is None:
+                    self.logger.warn(f"package with import_id {crate_id} not found")
+                    continue
+
+                yield UserPackage(user_id=user.id, package_id=package.id)
+
+        self._batch(user_package_object_generator(), UserPackage, DEFAULT_BATCH_SIZE)
+
+    def insert_user_versions(
+        self, user_version_generator: Iterable[dict[str, str]], crates_sources_id: UUID
+    ):
+        def user_version_object_generator():
+            for item in user_version_generator:
+                version_id = item["version_id"]
+                user_id = item["published_by"]
+
+                user = self.select_crates_user_by_import_id(user_id, crates_sources_id)
+                if user is None:
+                    self.logger.warn(f"user with import_id {user_id} not found")
+                    continue
+
+                version = self.select_version_by_import_id(version_id)
+                if version is None:
+                    self.logger.warn(f"version with import_id {version_id} not found")
+                    continue
+
+                yield UserVersion(user_id=user.id, version_id=version.id)
+
+        self._batch(user_version_object_generator(), UserVersion, DEFAULT_BATCH_SIZE)
 
     def insert_urls(self, url_generator: Iterable[str]):
         def url_object_generator():
@@ -218,15 +267,13 @@ class DB:
         with self.session() as session:
             session.add(Source(type=name))
             session.commit()
-            return session.query(Source).filter_by(type=name).first().id
+            return session.query(Source).filter_by(type=name).first()
 
     def insert_package_manager(self, source_id: UUID) -> PackageManager:
         with self.session() as session:
             session.add(PackageManager(source_id=source_id))
             session.commit()
-            return (
-                session.query(PackageManager).filter_by(source_id=source_id).first().id
-            )
+            return session.query(PackageManager).filter_by(source_id=source_id).first()
 
     def print_statement(self, stmt):
         dialect = postgresql.dialect()
@@ -235,17 +282,20 @@ class DB:
         )
         self.logger.log(str(compiled_stmt))
 
-    def select_url_types_homepages(self) -> List[URLType]:
+    def select_url_type(self, url_type: str, create: bool = False) -> URLType:
         with self.session() as session:
-            result = session.query(URLType).filter_by(name="homepage").first()
+            result = session.query(URLType).filter_by(name=url_type).first()
             if result:
-                return result.id
+                return result
+            if create:
+                return self.insert_url_types(url_type)
+            return None
 
-    def select_url_types_repositories(self) -> List[URLType]:
-        with self.session() as session:
-            result = session.query(URLType).filter_by(name="repository").first()
-            if result:
-                return result.id
+    def select_url_types_homepage(self, create: bool = False) -> URLType | None:
+        return self.select_url_type("homepage", create)
+
+    def select_url_types_repository(self, create: bool = False) -> URLType | None:
+        return self.select_url_type("repository", create)
 
     # TODO: rename this to select_package_manager
     def select_package_manager_by_name(
@@ -262,12 +312,12 @@ class DB:
 
             # return it if it exists
             if result:
-                self.logger.debug(f"id: {result.id}")
                 return result
 
             if create:
-                source = self.insert_source(package_manager)
-                return self.insert_package_manager(source)
+                result = self.insert_source(package_manager)
+                id = result.id
+                return self.insert_package_manager(id)
 
             return None
 
@@ -307,7 +357,29 @@ class DB:
             if result:
                 return result.type
 
+    def select_source_by_name(self, name: str, create: bool = False) -> Source | None:
+        with self.session() as session:
+            result = session.query(Source).filter_by(type=name).first()
+            if result:
+                return result
+            if create:
+                return self.insert_source(name)
+            return None
+
+    def select_crates_user_by_import_id(
+        self, import_id: str, crates_sources_id: UUID
+    ) -> User | None:
+        with self.session() as session:
+            result = (
+                session.query(User)
+                .filter_by(import_id=import_id, source_id=crates_sources_id)
+                .first()
+            )
+            if result:
+                return result
+
 
 if __name__ == "__main__":
     db = DB()
+
     # random tests
