@@ -50,8 +50,6 @@ class CratesTransformer(Transformer):
                 downloads = safe_int(row["downloads"])
                 checksum = row["checksum"]
 
-                # TODO: published_by is there
-
                 yield {
                     "crate_id": crate_id,
                     "version": version_num,
@@ -129,7 +127,7 @@ class CratesTransformer(Transformer):
                     "owner_id": owner_id,
                 }
 
-    # TODO: here, we are in the business of reopening files we've already opened before
+    # TODO: reopening files: versions.csv contains all the published_by ids
     def user_versions(self) -> Generator[Dict[str, str], None, None]:
         user_versions_path = self.finder(self.files["user_versions"])
 
@@ -169,9 +167,7 @@ class CratesTransformer(Transformer):
                         "url_type_id": self.url_types.documentation,
                     }
 
-    # TODO: this method also opens the same file again, which is something we want to
-    # avoid. crates.csv contains all the urls and crates, and relationships between
-    # them, so we should be able to do this in one pass
+    # TODO: reopening files: crates.csv contains all the urls
     def package_urls(self) -> Generator[Dict[str, str], None, None]:
         urls_path = self.finder(self.files["urls"])
 

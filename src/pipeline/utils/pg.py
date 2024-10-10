@@ -36,8 +36,7 @@ class DB:
         self.session = sessionmaker(self.engine)
         self.logger.debug("connected")
 
-    # TODO: the database client should not handle batching
-    # we should move this to the transformer
+    # TODO: transformer_utils should handle batching
     def _batch(
         self,
         items: Iterable[DeclarativeMeta],
@@ -80,12 +79,7 @@ class DB:
         )
         session.execute(stmt)
 
-    # TODO: inefficient insertion processes
-    # the following functions are all about insertions
-    # since we store `import_ids` in the db, we query the db for every single
-    # insertion, which is not ideal
-    # since we're removing ORMs completely, we should be able to batch
-    # these queries as well
+    # TODO: import_id queries are inefficient, and should be cached somehow
 
     def insert_packages(
         self,
@@ -320,7 +314,6 @@ class DB:
     def select_url_types_documentation(self, create: bool = False) -> URLType | None:
         return self.select_url_type("documentation", create)
 
-    # TODO: rename this to select_package_manager
     def select_package_manager_by_name(
         self, package_manager: str, create: bool = False
     ) -> PackageManager | None:

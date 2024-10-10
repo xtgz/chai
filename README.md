@@ -10,6 +10,14 @@ are 3 services to it:
 1. alembic: for running migrations
 1. pipeline: which fetches and writes data
 
+## Requirements
+
+- docker
+
+> [!TIP]
+>
+> for local development, all the requirements are within the [pkgx yaml](pkgx.yaml) file
+
 ## Setup
 
 1. Run `docker compose build` to create the latest Docker images.
@@ -19,10 +27,6 @@ are 3 services to it:
 >
 > the `PKG_MANAGER` argument denotes which package manager the pipeline will be run for
 > it is configurable, and defaults to `crates`
-
-> [!TIP]
->
-> to force it, `docker-compose up --force-recreate --build`
 
 ## Hard Reset
 
@@ -47,52 +51,59 @@ if at all you need to do a hard reset, here's the steps
 
 our goal is to build a data schema that looks like this:
 
-<!-- ![db/CHAI_ERD.png](db/CHAI_ERD.png) -->
+![db/CHAI_ERD.png](db/CHAI_ERD.png)
 
 our specific application extracts the dependency graph understand what are critical
 pieces of the open-source graph. there are many other potential use cases for this data:
 
-- impacts of a package update (is it compatible with other packages)
-- finding name squats
-- finding the superpower maintainers
-- number of versions / releases per package, and a release cadence
-- ...
+- license compatibility checker
+- developer publications
+- package popularity
+- dependency analysis vulnerability tool (requires translating semver)
 
-### top packages by number of versions
+### license compatibility checker
+
+> [!WARNING]
+>
+> it's probably better to start with a global list of licenses and then map each
+> version's to the global list...but this isn't part of v1
 
 ```sql
-SELECT p."name", count(v."version") AS total_versions
+SELECT DISTINCT
+   p.name,
+   l.name AS license,
+   dep.name AS dependency,
+   dep_l.name AS dependency_license
 FROM packages p
 JOIN versions v ON p.id = v.package_id
-GROUP BY p."name"
-ORDER BY total_versions DESC;
+JOIN dependencies d ON v.id = d.version_id
+JOIN packages dep ON d.dependency_id = dep.id
+JOIN licenses l ON v.license_id = l.id
+JOIN versions dep_v ON dep.id = dep_v.package_id
+JOIN licenses dep_l ON dep_v.license_id = dep_l.id
 ```
 
-### some creative ways to detect name squats
+### package popularity
 
 ```sql
-SELECT left(p."name", 5), count(1) as number_of_packages
+SELECT p.name, SUM(v.downloads) as total_downloads
 FROM packages p
-GROUP BY left(p."name", 5)
-ORDER BY number_of_packages DESC;
+JOIN versions v ON p.id = v.package_id
+GROUP BY p.name
+ORDER BY total_downloads DESC
+LIMIT 10;
 ```
 
-### url types available
+### developer publications
 
 ```sql
--- #TODO
-```
-
-### what platform is most used for code hosting?
-
-```sql
--- #TODO
-```
-
-### packages where we're missing repo urls
-
-```sql
--- #TODO
+SELECT u.username, p.name, COUNT(uv.id) as publications
+FROM users u
+JOIN user_versions uv ON u.id = uv.user_id
+JOIN versions v ON uv.version_id = v.id
+JOIN packages p ON v.package_id = p.id
+GROUP BY u.username, p.name
+ORDER BY p.name;
 ```
 
 ## FAQs / common issues
@@ -120,7 +131,7 @@ rm -rf db/data data .venv
 ### build
 
 ```sh
-docker-compose build
+docker compose build
 ```
 
 ### start

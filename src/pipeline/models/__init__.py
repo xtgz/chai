@@ -84,7 +84,9 @@ class Version(Base):
     # are nullable bc not all sources provide them
     size = Column(Integer, nullable=True, index=True)
     published_at = Column(DateTime, nullable=True, index=True)
-    license_id = Column(UUID(as_uuid=True), ForeignKey("licenses.id"), nullable=True)
+    license_id = Column(
+        UUID(as_uuid=True), ForeignKey("licenses.id"), nullable=True, index=True
+    )
     downloads = Column(Integer, nullable=True, index=True)
     checksum = Column(String, nullable=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
@@ -109,7 +111,7 @@ class Version(Base):
 class License(Base):
     __tablename__ = "licenses"
     id = Column(UUID(as_uuid=True), primary_key=True, default=func.uuid_generate_v4())
-    name = Column(String, nullable=False, unique=True)
+    name = Column(String, nullable=False, unique=True, index=True)
     created_at = Column(DateTime, nullable=False, default=func.now())
     updated_at = Column(DateTime, nullable=False, default=func.now())
 

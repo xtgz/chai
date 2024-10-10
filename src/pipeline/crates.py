@@ -11,7 +11,7 @@ from src.pipeline.utils.crates.transformer import CratesTransformer
 logger = Logger("crates_orchestrator")
 
 
-# TODO: we can make a global version of this
+# TODO: global config class
 @dataclass
 class Config:
     file_location: str
