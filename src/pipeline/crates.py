@@ -16,19 +16,21 @@ logger = Logger("crates_orchestrator")
 class Config:
     file_location: str
     test: bool
+    fetch: bool
     package_manager_id: str
     url_types: URLTypes
     user_types: UserTypes
 
     def __str__(self):
         return f"Config(file_location={self.file_location}, test={self.test}, \
-            package_manager_id={self.package_manager_id}, url_types={self.url_types}, \
-            user_types={self.user_types})"
+            fetch={self.fetch}, package_manager_id={self.package_manager_id}, \
+            url_types={self.url_types}, user_types={self.user_types})"
 
 
 def initialize(db: DB) -> Config:
     file_location = "https://static.crates.io/db-dump.tar.gz"
     test = getenv("TEST", "false").lower() == "true"
+    fetch = getenv("FETCH", "true").lower() == "true"
     package_manager = db.select_package_manager_by_name("crates", create=True)
     homepage_url = db.select_url_types_homepage(create=True)
     repository_url = db.select_url_types_repository(create=True)
@@ -47,6 +49,7 @@ def initialize(db: DB) -> Config:
     return Config(
         file_location=file_location,
         test=test,
+        fetch=fetch,
         package_manager_id=package_manager.id,
         url_types=url_types,
         user_types=user_types,
@@ -61,20 +64,15 @@ def fetch(config: Config) -> None:
 
 def load(db: DB, transformer: CratesTransformer, config: Config) -> None:
     db.insert_packages(transformer.packages(), config.package_manager_id, "crates")
-
-    # crates provides a gh_login for every single crate publisher
-    # so, we use the GitHub source as `source_id`
-    db.insert_users(transformer.users())
-    db.insert_user_packages(transformer.user_packages(), config.user_types.github)
-
-    # crates provides a homepage, repository, and documentation url for every crate
+    db.insert_versions(transformer.versions())
+    db.insert_users(transformer.users(), config.user_types.crates)
+    db.insert_user_packages(transformer.user_packages())
     db.insert_urls(transformer.urls())
 
     if not config.test:
         # these are bigger files, so we skip them in tests
-        db.insert_versions(transformer.versions())
         db.insert_user_versions(transformer.user_versions(), config.user_types.github)
-        db.insert_package_urls(transformer.package_urls())
+        # db.insert_package_urls(transformer.package_urls()) FIXME
         db.insert_dependencies(transformer.dependencies())
 
     db.insert_load_history(config.package_manager_id)
@@ -84,7 +82,8 @@ def load(db: DB, transformer: CratesTransformer, config: Config) -> None:
 def main(db: DB) -> None:
     config = initialize(db)
     logger.debug(config)
-    fetch(config)
+    if config.fetch:
+        fetch(config)
 
     transformer = CratesTransformer(config.url_types, config.user_types)
     load(db, transformer, config)
