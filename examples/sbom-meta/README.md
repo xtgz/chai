@@ -10,6 +10,24 @@ An example Chai application that displays package metadata for
 
 ## Usage
 
-From the root directory of any repository run `sbom-meta`, you can also specify
-a source with `sbom-meta SOURCE` for any of the [supported sources](https://github.com/anchore/syft/wiki/supported-sources),
-including Docker images. Use the `--json` flag to omit JSON.
+Run `sbom-meta` in the root directory of any repository to get a list of
+dependencies with metadata.
+
+```bash
+git clone git@github.com:starship/starship.git
+cd starship
+sbom-meta
+```
+
+You can sort any of the fields, ascending or descending:
+
+```bash
+sbom-meta --sort downloads,desc
+sbom-meta --sort published,asc
+```
+
+Use the `--json` flag to output JSON:
+
+```bash
+sbom-meta --json | jq .[1].name
+```

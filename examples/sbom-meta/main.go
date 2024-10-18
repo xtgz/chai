@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/dustin/go-humanize"
@@ -71,10 +72,10 @@ func main() {
 	var sourcePath string
 	var cfg config
 	var jsonFlag = flag.Bool("json", false, "Output JSON")
+	var sortFlag = flag.String("sort", "published,asc", "Sort by field,asc|desc")
 	flag.Usage = usage
 	flag.Parse()
 	args := flag.Args()
-
 	err := env.Parse(&cfg)
 	if err != nil {
 		panic(err)
@@ -89,6 +90,7 @@ func main() {
 		usage()
 		os.Exit(1)
 	}
+	sortArg := strings.ToLower(*sortFlag)
 
 	// connect to the chai db, defaulting to the docker-compose setup
 	connStr := fmt.Sprintf("postgresql://%s:%s@%s:%d/chai?sslmode=disable", cfg.User, cfg.Password, cfg.Host, cfg.Port)
@@ -119,9 +121,30 @@ func main() {
 		}
 	}
 	pms = dedupePackages(pms)
+
 	sort.Slice(pms, func(i, j int) bool {
-		return pms[i].LastPublished.After(pms[j].LastPublished)
+		switch sortArg {
+		case "package", "package,asc":
+			return pms[i].Name < pms[j].Name
+		case "package,desc":
+			return pms[i].Name > pms[j].Name
+		case "repository", "repository,asc":
+			return pms[i].URL < pms[j].URL
+		case "repository,desc":
+			return pms[i].URL > pms[j].URL
+		case "published", "published,asc":
+			return pms[i].LastPublished.After(pms[j].LastPublished)
+		case "published,desc":
+			return pms[i].LastPublished.Before(pms[j].LastPublished)
+		case "downloads", "downloads,asc":
+			return pms[i].Downloads < pms[j].Downloads
+		case "downloads,desc":
+			return pms[i].Downloads > pms[j].Downloads
+		default:
+			return pms[i].Name < pms[j].Name
+		}
 	})
+
 	if *jsonFlag {
 		js, err := json.Marshal(pms)
 		if err != nil {
@@ -134,19 +157,36 @@ func main() {
 }
 
 func printPackagesMeta(pms []packageMeta) {
-
 	t := table.NewWriter()
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Package", "Repository", "Last Published", "Downloads"})
+	t.AppendHeader(table.Row{"Package", "Repository", "Published", "Downloads"})
+	t.SetColumnConfigs([]table.ColumnConfig{
+		{Name: "Package"},
+		{Name: "Repository"},
+		{Name: "Published", Transformer: formatTime},
+		{Name: "Downloads", Transformer: formatNumber},
+	})
 	for _, pm := range pms {
 		p := color.New(color.FgHiGreen).Sprint(pm.Name)
-		lp := humanize.Time(pm.LastPublished)
-		d := humanize.Comma(pm.Downloads)
 		u := pm.URL
 		t.Style().Options.DrawBorder = false
-		t.AppendRow(table.Row{p, u, lp, d})
+		t.AppendRow(table.Row{p, u, pm.LastPublished, pm.Downloads})
 	}
 	t.Render()
+}
+
+func formatTime(val interface{}) string {
+	if t, ok := val.(time.Time); ok {
+		return humanize.Time(t)
+	}
+	return "Bad time format"
+}
+
+func formatNumber(val interface{}) string {
+	if n, ok := val.(int64); ok {
+		return humanize.Comma(n)
+	}
+	return "NaN"
 }
 
 func dedupePackages(pms []packageMeta) []packageMeta {
