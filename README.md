@@ -227,3 +227,11 @@ psql "postgresql://postgres:s3cr3t@localhost:5435/chai" -c "SELECT count(id) FRO
 ```sh
 psql "postgresql://postgres:s3cr3t@localhost:5435/chai" -c "SELECT * FROM load_history;"
 ```
+
+### restart-api
+
+Refreshes table knowledge from the db.
+
+```sh
+docker-compose restart api
+```
