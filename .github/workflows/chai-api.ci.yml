@@ -3,7 +3,11 @@ name: api.ci
 on:
   push:
     branches: [main]
+    paths:
+      - "api/**"
   pull_request:
+    paths:
+      - "api/**"
 
 env:
   CARGO_TERM_COLOR: always
