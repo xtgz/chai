@@ -16,7 +16,7 @@ services:
 
   alembic:
     build:
-      context: ./
+      context: .
       dockerfile: ./alembic/Dockerfile
     environment:
       - CHAI_DATABASE_URL=postgresql://postgres:s3cr3t@db:5432/chai
@@ -27,60 +27,53 @@ services:
     working_dir: /alembic
     entrypoint: ["./run_migrations.sh"]
 
-  pipeline:
+  crates:
     build:
-      context: ./
-      dockerfile: ./src/Dockerfile
-      args:
-        BUILDKIT_PROGRESS: plain
+      context: .
+      dockerfile: ./package_managers/crates/Dockerfile
     environment:
       - CHAI_DATABASE_URL=postgresql://postgres:s3cr3t@db:5432/chai
-      - FREQUENCY=${FREQUENCY:-24}
       - PYTHONPATH=/
-      - PKG_MANAGER=${PKG_MANAGER:-crates}
-      - TEST=${TEST:-false}
       - DEBUG=${DEBUG:-true}
+      - TEST=${TEST:-false}
       - FETCH=${FETCH:-true}
+      - FREQUENCY=${FREQUENCY:-24}
     depends_on:
       db:
         condition: service_healthy
       alembic:
         condition: service_completed_successfully
-    working_dir: /src
-    entrypoint: ["./run_pipeline.sh"]
 
-  api:
+  homebrew:
     build:
-      context: ./api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./package_managers/homebrew/Dockerfile
     environment:
-      - DATABASE_URL=postgresql://postgres:s3cr3t@db:5432/chai
-      - HOST=0.0.0.0
-      - PORT=8080
-    ports:
-      - "8080:8080"
+      - CHAI_DATABASE_URL=postgresql://postgres:s3cr3t@db:5432/chai
+      - TEST=${TEST:-false}
+      - FETCH=${FETCH:-true}
+      - FREQUENCY=${FREQUENCY:-24}
+      - SOURCE=https://formulae.brew.sh/api/formula.json
+      - CODE_DIR=/package_managers/homebrew
+      - DATA_DIR=/data/homebrew
+    volumes:
+      - ./data/homebrew:/data/homebrew
     depends_on:
       db:
         condition: service_healthy
       alembic:
         condition: service_completed_successfully
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/heartbeat"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
 
   monitor:
-    build: monitor
+    build:
+      context: ./monitor
+      dockerfile: Dockerfile
     environment:
       - DOCKER_HOST=${DOCKER_HOST:-unix:///var/run/docker.sock}
     volumes:
-      - ./monitor:/app
       - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
-      pipeline:
+      crates:
         condition: service_started
-    working_dir: /usr/src/monitor
-    entrypoint: ["./run_monitor.sh"]
+      homebrew:
+        condition: service_started

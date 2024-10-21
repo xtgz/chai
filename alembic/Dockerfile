@@ -7,5 +7,5 @@ RUN apt -y install python3-psycopg2
 RUN apt -y install python3-sqlalchemy python3-sqlalchemy-ext
 COPY . .
 WORKDIR /alembic
-RUN chmod +x run_migrations.sh
+RUN chmod +x /alembic/run_migrations.sh
 ENTRYPOINT ["/alembic/run_migrations.sh"]

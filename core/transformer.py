@@ -4,7 +4,7 @@ from typing import Dict
 
 from sqlalchemy import UUID
 
-from src.pipeline.utils.logger import Logger
+from core.logger import Logger
 
 # this is a temporary fix, but sometimes the raw files have weird characters
 # and lots of data within certain fields

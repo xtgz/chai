@@ -1,13 +1,17 @@
 import os
 from typing import Any, Dict, Iterable, List, Type
-from src.pipeline.utils.utils import build_query_params
+
 from sqlalchemy import UUID, create_engine
 from sqlalchemy.dialects import postgresql
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm.decl_api import DeclarativeMeta
-from src.pipeline.models import (
+
+from core.logger import Logger
+from core.models import (
+    URL,
     DependsOn,
+    DependsOnType,
     License,
     LoadHistory,
     Package,
@@ -16,12 +20,11 @@ from src.pipeline.models import (
     Source,
     URLType,
     User,
-    URL,
     UserPackage,
     UserVersion,
     Version,
 )
-from src.pipeline.utils.logger import Logger
+from core.utils import build_query_params
 
 CHAI_DATABASE_URL = os.getenv("CHAI_DATABASE_URL")
 DEFAULT_BATCH_SIZE = 10000
@@ -371,8 +374,13 @@ class DB:
                 PackageURL, self._process_batch(batch, process_package_url)
             )
 
-    def insert_source(self, name: str) -> UUID:
+    def insert_source(self, name: str) -> Source:
         with self.session() as session:
+            existing_source = session.query(Source).filter_by(type=name).first()
+            if existing_source:
+                self.logger.warn(f"Source '{name}' already exists")
+                return existing_source
+
             session.add(Source(type=name))
             session.commit()
             return session.query(Source).filter_by(type=name).first()
@@ -418,6 +426,9 @@ class DB:
 
     def select_url_types_documentation(self, create: bool = False) -> URLType | None:
         return self.select_url_type("documentation", create)
+
+    def select_url_types_source(self, create: bool = False) -> URLType | None:
+        return self.select_url_type("source", create)
 
     def select_package_manager_by_name(
         self, package_manager: str, create: bool = False
@@ -514,3 +525,20 @@ class DB:
     def select_licenses_by_name(self, names: Iterable[str]) -> List[License]:
         with self.session() as session:
             return session.query(License).filter(License.name.in_(names)).all()
+
+    def select_dependency_type_by_name(
+        self, name: str, create: bool = False
+    ) -> DependsOnType:
+        with self.session() as session:
+            result = session.query(DependsOnType).filter_by(name=name).first()
+            if result:
+                return result
+            if create:
+                return self.insert_dependency_type(name)
+            return None
+
+    def insert_dependency_type(self, name: str) -> DependsOnType:
+        with self.session() as session:
+            session.add(DependsOnType(name=name))
+            session.commit()
+            return session.query(DependsOnType).filter_by(name=name).first()

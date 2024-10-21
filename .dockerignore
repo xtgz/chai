@@ -1,8 +1,10 @@
 # directories
 data/
-db/
 .venv/
 
 # other files
 .gitignore
 docker-compose.yml
+.DS_Store
+.git
+README.md
