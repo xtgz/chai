@@ -20,6 +20,14 @@ Use [Docker](https://docker.com)
 <!-- we'd like to change the above to be more friendly to users trying to run a specific
 pipeline -->
 
+> [!NOTE]
+> Currently, we support only two package managers:
+>
+> - crates
+> - Homebrew
+>
+> We are planning on supporting `NPM`, `PyPI`, and `rubygems`
+
 ### Arguments
 
 Specify these eg. `docker compose -e FOO=bar up`:
@@ -35,7 +43,7 @@ These arguments are all configurable in the `docker-compose.yml` file.
 
 1. `db`: [PostgreSQL] database for the reduced package data
 2. `alembic`: handles migrations
-3. `pipeline`: fetches and writes data
+3. `package_managers`: fetches and writes data for each package manager
 4. `api`: a simple REST api for reading from the db
 
 ### Hard Reset
@@ -59,8 +67,10 @@ Our goal is to build a data schema that looks like this:
 ![db/CHAI_ERD.png](db/CHAI_ERD.png)
 
 Our specific application extracts the dependency graph understand what are
-critical pieces of the open-source graph. there are many other potential use
-cases for this data:
+critical pieces of the open-source graph. We also built a simple example that displays
+[sbom-metadata](examples/sbom-meta) for your repository.
+
+There are many other potential use cases for this data:
 
 - License compatibility checker
 - Developer publications
@@ -69,29 +79,6 @@ cases for this data:
 
 > [!TIP]
 > Help us add the above to the examples folder.
-
-### Package Popularity
-
-```sql
-SELECT p.name, SUM(v.downloads) as total_downloads
-FROM packages p
-JOIN versions v ON p.id = v.package_id
-GROUP BY p.name
-ORDER BY total_downloads DESC
-LIMIT 10;
-```
-
-### Developer Publications
-
-```sql
-SELECT u.username, p.name, COUNT(uv.id) as publications
-FROM users u
-JOIN user_versions uv ON u.id = uv.user_id
-JOIN versions v ON uv.version_id = v.id
-JOIN packages p ON v.package_id = p.id
-GROUP BY u.username, p.name
-ORDER BY p.name;
-```
 
 ## FAQs / Common Issues
 
