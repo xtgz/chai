@@ -8,18 +8,18 @@
 # -x: Print commands and their arguments as they are executed.
 # -u: Treat unset variables as an error when substituting.
 # -o pipefail: Return value of a pipeline is the status of the last command to exit with a non-zero status.
-set -exuo pipefail
+set -uo pipefail
 
 # Function to log messages with timestamps
 log() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1" | tee -a /var/log/cron.log
 }
 
 log "Starting Homebrew pipeline script"
 
 # Fetch required IDs and URLs from the database
 log "Fetching required IDs and URLs from the database"
-IDS=$(psql "$CHAI_DATABASE_URL" -f sql/homebrew_vars.sql -t -A -F'|')
+IDS=$(psql "$CHAI_DATABASE_URL" -f /package_managers/homebrew/sql/homebrew_vars.sql -t -A -F'|')
 
 # Parse the results
 IFS='|' read -r \
