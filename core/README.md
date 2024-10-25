@@ -9,12 +9,18 @@ into the database.
 
 ### 1. [Config](config.py)
 
-The Config module provides configuration management for loaders. It includes:
+Config always runs first, and is the entrypoint for all loaders. It includes;
 
-- `PackageManager` enum for supported package managers
-- `Config` class for storing loader-specific configurations
-- Functions for initializing configurations and loading various types (URL types,
-  user types, package manager IDs, dependency types)
+- Execution flags:
+  - `FETCH` determines whether we request the data from source
+  - `TEST` enables a test mode, to test specific portions of the pipeline
+  - `NO_CACHE` to determine whether we save the intermediate pipeline files
+- Package Manager flags
+  - `pm_id` gets the package manager id from the db, that we'd run the pipeline for
+  - `source` is the data source for that package manager. `SOURCES` defines the map.
+
+The next 3 configuration classes retrieve the IDs for url types (homepage, documentation,
+etc.), dependency types (build, runtime, etc.) and user types (crates user, github user)
 
 ### 2. [Database](db.py)
 
@@ -31,6 +37,7 @@ package manager sources. It supports:
 
 - Downloading tarball files
 - Extracting contents to a specified directory
+- Maintaining a "latest" symlink so we always know where to look
 
 ### 4. [Logger](logger.py)
 
@@ -72,12 +79,3 @@ To create a new loader for a package manager:
    Transformer, Scheduler) to fetch, transform, and load data.
 
 Example usage can be found in the [crates](../package_managers/crates) loader.
-
-## Contributing
-
-When adding new functionality or modifying existing core components, please ensure that
-changes are compatible with all existing loaders and follow the established patterns
-and conventions.
-
-For more detailed information on each component, refer to the individual files and their
-docstrings.

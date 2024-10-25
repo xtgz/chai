@@ -12,30 +12,32 @@ Use [Docker](https://docker.com)
 2. Then, run `docker compose up` to launch.
 
 > [!NOTE]
+>
 > This will run CHAI with for all package managers. As an example crates by
 > itself will take over an hour and consume >5GB storage.
 >
-> To run only a specific backend, comment out the others in `docker-compose.yml`.
-
-<!-- we'd like to change the above to be more friendly to users trying to run a specific
-pipeline -->
-
-> [!NOTE]
 > Currently, we support only two package managers:
 >
 > - crates
 > - Homebrew
 >
-> We are planning on supporting `NPM`, `PyPI`, and `rubygems`
+> You can run a single package manager by running
+> `docker compose run --rm -e ... <package_manager>`
+>
+> We are planning on supporting `NPM`, `PyPI`, and `rubygems` next.
 
 ### Arguments
 
 Specify these eg. `docker compose -e FOO=bar up`:
 
-- `FREQUENCY`: how frequently **(in hours)** the pipeline will run
-  (defaults to `24`)
-- `FETCH`: whether the pipeline will fetch the data. Defaults to `true`
-- `DEBUG`: whether the pipeline will run in debug mode. Defaults to `true`
+- `FREQUENCY`: Sets how often (in hours) the pipeline should run.
+- `TEST`: Runs the loader in test mode when set to true, skipping certain data insertions.
+- `FETCH`: Determines whether to fetch new data from the source when set to true.
+- `NO_CACHE`: When set to true, deletes temporary files after processing.
+
+> [!NOTE]
+> The flag `NO_CACHE` does not mean that files will not get downloaded to your local
+> storage, just that we'll delete the files once we're done with them
 
 These arguments are all configurable in the `docker-compose.yml` file.
 
@@ -65,6 +67,8 @@ Stuff happens. Start over:
 Our goal is to build a data schema that looks like this:
 
 ![db/CHAI_ERD.png](db/CHAI_ERD.png)
+
+You can read more about specific data models in the dbs [readme](db/README.md)
 
 Our specific application extracts the dependency graph understand what are
 critical pieces of the open-source graph. We also built a simple example that displays
