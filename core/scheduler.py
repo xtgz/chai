@@ -1,8 +1,10 @@
-from os import getenv
-import schedule
 import time
+from os import getenv
 from threading import Thread
 from typing import Callable
+
+import schedule
+
 from core.logger import Logger
 
 FREQUENCY = int(getenv("FREQUENCY", 24))

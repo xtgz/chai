@@ -320,7 +320,6 @@ class DB:
 
     def insert_package_urls(self, package_url_generator: Iterable[dict[str, str]]):
         url_cache: Dict[tuple[str, str], UUID] = {}
-        # package_cache: Dict[str, UUID] = {}
 
         def fetch_packages_and_urls(items: List[Dict[str, str]]):
             package_ids = build_query_params(items, self.package_cache, "import_id")

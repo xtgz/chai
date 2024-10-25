@@ -11,10 +11,6 @@ from sqlalchemy import (
     UniqueConstraint,
     func,
 )
-
-# from sqlalchemy.orm import Mapped
-# from sqlalchemy.orm import mapped_column
-# from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -294,7 +290,6 @@ class URLType(Base):
     )
 
 
-# usernames can come from different sources, but within a source, they are probably unique
 class User(Base):
     __tablename__ = "users"
     __table_args__ = (

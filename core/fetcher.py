@@ -6,6 +6,7 @@ from io import BytesIO
 from typing import Any
 
 from requests import get
+
 from core.logger import Logger
 
 

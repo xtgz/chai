@@ -1,8 +1,9 @@
-import time
-from typing import Tuple, Optional, Dict
-import docker
 import json
+import time
 from collections import defaultdict
+from typing import Dict, Optional, Tuple
+
+import docker
 
 PIPELINE_CONTAINER = "chai-oss-pipeline-1"
 DATABASE_CONTAINER = "chai-oss-db-1"

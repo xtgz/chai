@@ -22,7 +22,7 @@ class Logger:
         self.mode = Logger.VERBOSE if DEBUG else mode
 
     def print(self, msg: str):
-        print(f"{self.time_diff():.2f}: [{self.name}]: {msg}")
+        print(f"{self.time_diff():.2f}: [{self.name}]: {msg}", flush=True)
 
     def error(self, message):
         self.print(f"[ERROR]: {message}")
