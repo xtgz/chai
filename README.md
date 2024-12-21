@@ -217,3 +217,5 @@ docker compose down --remove-orphans
 
 [PostgreSQL]: https://www.postgresql.org
 [`pkgx`]: https://pkgx.sh
+
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/xtgz/chai/main?labpath=pkgx.yaml)
